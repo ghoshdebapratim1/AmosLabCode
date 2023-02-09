@@ -1,0 +1,183 @@
+---
+title: "Mixed Effects Model"
+author: "Debapratim Ghosh (dg19@illinois.edu)"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r}
+
+df=read.csv('cleaned_uic.csv')
+names(df)
+```
+```{r}
+table(df$major_name)
+```
+##mean_car_dec_making
+
+```{r}
+#install.packages('devtools')
+#library(devtools)
+#devtools::install_github("dustinfife/flexplot", ref="development")
+
+#install.packages('lme4')
+library(flexplot)
+library(lme4)
+
+
+base_line=lmer(mean_car_dec_making~1+(1|major_name),data=df)
+
+self_plans=lmer(mean_car_dec_making~mean_car_self_plans+(mean_car_self_plans|major_name),data=df)
+
+model.comparison(base_line,self_plans)
+compare.fits(mean_car_dec_making~mean_car_self_plans|major_name,data=df,base_line,self_plans,clusters=4)
+```
+
+```{r}
+mod_car_dec_making=lmer(mean_car_dec_making~race_desc+coo+state+student_status+(mean_car_exp_plans+mean_car_env_plans+mean_car_self_plans+mean_car_thoughts_inv|major_name),data=df)
+
+
+
+```
+### Mean Career Decision Making
+
+
+```{r}
+df$major_name=as.factor(df$major_name)
+baseline=lmer(mean_car_dec_making~1+(1|major_name),data=df)
+icc(baseline) # 0% of variance due to clustering 
+
+visualize(baseline,plot="model",sample = 3)
+
+##Career Exploratory Plans
+random_slopes=lmer(mean_car_dec_making~mean_car_exp_plans+(mean_car_exp_plans|major_name),data=df)
+fixed_slopes=lmer(mean_car_dec_making~mean_car_exp_plans+(1|major_name),data=df)
+
+icc(random_slopes) ## 52%
+icc(fixed_slopes) ## 0%
+visualize(random_slopes,plot="model")
+
+compare.fits(mean_car_dec_making~mean_car_exp_plans | major_name,data=df,fixed_slopes,random_slopes,clusters = 10) ## Look pretty parallel 
+
+
+## Statistics 
+model.comparison(fixed_slopes,baseline) # p-value for fixed slopes significant,32% R-squared change 
+model.comparison(random_slopes,baseline)# p-value for random slopes significant, 33% R-squared change
+model.comparison(fixed_slopes,random_slopes) # Fixed slopes have higher bayes factor although not significant
+## Maximum differnce in predictions is about 0.2
+
+## Model this as a fixed effect 
+
+icc(random_slopes)
+```
+
+```{r}
+df$predicted_cluster_kmeans<-as.factor(df$predicted_cluster_kmeans)
+mod_car_dec_making=lmer(mean_car_dec_making~race_desc+coo+state+student_status+predicted_cluster_kmeans+(1|major_name),data=df)
+
+summary(mod_car_dec_making)
+icc(mod_car_dec_making) #3.698351e-17
+
+compare.fits(mean_car_dec_making~student_status | major_name,data=df,mod_car_dec_making,baseline,clusters = 3)
+```
+
+### Mean Career Environment Plans
+
+
+```{r}
+df$major_name=as.factor(df$major_name)
+baseline=lmer(mean_car_env_plans~1+(1|student_status),data=df)
+icc(baseline)## 0.0067
+```
+
+```{r}
+#boxplot(mean_car_exp_plans~major_name,data=df)
+
+bp <- boxplot(mean_car_env_plans~major_name,data=df, col = c("gold", "darkgreen"), xaxt = "n")
+tick <- seq_along(bp$names)
+axis(1, at = tick, labels = FALSE)
+text(tick, par("usr")[3] - 0.3, bp$names, srt = 90, xpd = TRUE)
+```
+
+
+
+```{r}
+df$predicted_cluster_kmeans<-as.factor(df$predicted_cluster_kmeans)
+mod_car_env_plans=lmer(mean_car_env_plans~race_desc+coo+state+major_name+predicted_cluster_kmeans+(1|student_status),data=df)
+
+summary(mod_car_env_plans)
+icc(mod_car_env_plans) #3.698351e-17
+model.comparison(mod_car_env_plans,baseline)
+compare.fits(mean_car_dec_making~race_desc | major_name,data=df,mod_car_env_plans,baseline,clusters = 3)
+```
+
+## Career Decision Making 
+```{r}
+df$major_name=as.factor(df$major_name)
+baseline=lmer(mean_car_dec_making~1+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+mod_car_dec_making=lmer(mean_car_dec_making~major_name+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+model.comparison(mod_car_dec_making,baseline)
+
+
+icc(mod_car_dec_making)
+summary(mod_car_dec_making)
+s=summary(mod_car_dec_making)
+s
+
+as.numeric(as.character(s$coefficients[,1]))
+```
+## Career Exploratory Plans
+```{r}
+df$major_name=as.factor(df$major_name)
+baseline=lmer(mean_car_exp_plans~1+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+mod_car_exp_plans=lmer(mean_car_exp_plans~major_name+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+model.comparison(mod_car_exp_plans,baseline)
+
+
+icc(mod_car_exp_plans)
+summary(mod_car_exp_plans)
+s=summary(mod_car_exp_plans)
+s
+
+as.numeric(as.character(s$coefficients[,1]))
+```
+
+## Career Env Exploration
+```{r}
+df$major_name=as.factor(df$major_name)
+baseline=lmer(mean_car_env_plans~1+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+mod_car_exp_plans=lmer(mean_car_env_plans~major_name+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+model.comparison(mod_car_exp_plans,baseline)
+
+
+icc(mod_car_exp_plans)
+summary(mod_car_exp_plans)
+s=summary(mod_car_exp_plans)
+s
+
+as.numeric(as.character(s$coefficients[,1]))
+```
+## Career Self Exploration
+```{r}
+df$major_name=as.factor(df$major_name)
+baseline=lmer(mean_car_self_plans~1+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+mod_car_exp_plans=lmer(mean_car_self_plans~major_name+(1|student_status)+(1|race_desc)+(1|coo)+(1|state),data=df)
+
+model.comparison(mod_car_exp_plans,baseline)
+
+
+icc(mod_car_exp_plans)
+summary(mod_car_exp_plans)
+s=summary(mod_car_exp_plans)
+s
+
+as.numeric(as.character(s$coefficients[,1]))
+```
